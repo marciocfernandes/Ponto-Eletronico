@@ -37,12 +37,20 @@
         Bem-vindo, {{ current_user.nome }}!
     </p>
 
-    <div class="mt-4 mb-4">
+    <div class="d-flex gap-2 mt-4 mb-4">
+
     <a href="{{ url_for('admin.listar_funcionarios') }}"
        class="btn btn-primary">
         Gerenciar funcionários
     </a>
+
+    <a href="{{ url_for('admin.consultar_registros') }}"
+       class="btn btn-success">
+        Consultar registros de ponto
+    </a>
+
 </div>
+
 
     <div class="row g-4 mt-3">
 

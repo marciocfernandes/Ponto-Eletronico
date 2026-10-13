@@ -9,7 +9,7 @@ from app import db
 from app.utils import admin_required
 from app.models.usuario import Usuario
 from app.models.registro_ponto import RegistroPonto
-
+from datetime import datetime, timedelta
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -160,3 +160,68 @@ def alterar_status(id):
 
     flash("Status do funcionário atualizado!")
     return redirect(url_for("admin.listar_funcionarios"))
+
+@admin.route("/registros")
+@admin_required
+def consultar_registros():
+
+    funcionarios = (
+        Usuario.query
+        .filter_by(perfil="FUNCIONARIO")
+        .order_by(Usuario.nome.asc())
+        .all()
+    )
+
+    funcionario_id = request.args.get("funcionario_id", type=int)
+    data_inicio = request.args.get("data_inicio", "").strip()
+    data_fim = request.args.get("data_fim", "").strip()
+
+    consulta = (
+        db.session.query(RegistroPonto, Usuario)
+        .join(Usuario, RegistroPonto.usuario_id == Usuario.id)
+    )
+
+    if funcionario_id:
+        consulta = consulta.filter(
+            Usuario.id == funcionario_id,
+            Usuario.perfil == "FUNCIONARIO"
+        )
+    else:
+        consulta = consulta.filter(
+            Usuario.perfil == "FUNCIONARIO"
+        )
+
+    try:
+        if data_inicio:
+            inicio = datetime.strptime(data_inicio, "%Y-%m-%d")
+            consulta = consulta.filter(
+                RegistroPonto.data_hora >= inicio
+            )
+
+        if data_fim:
+            fim = datetime.strptime(data_fim, "%Y-%m-%d")
+            fim_exclusivo = fim + timedelta(days=1)
+
+            consulta = consulta.filter(
+                RegistroPonto.data_hora < fim_exclusivo
+            )
+
+    except ValueError:
+        flash("Informe datas válidas no formato AAAA-MM-DD.")
+        return redirect(url_for("admin.consultar_registros"))
+
+    registros = (
+        consulta
+        .order_by(RegistroPonto.data_hora.desc())
+        .limit(500)
+        .all()
+    )
+
+    return render_template(
+        "admin/registros.html",
+        registros=registros,
+        funcionarios=funcionarios,
+        funcionario_id=funcionario_id,
+        data_inicio=data_inicio,
+        data_fim=data_fim
+    )
