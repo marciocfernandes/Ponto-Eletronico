@@ -9,7 +9,7 @@ app = create_app()
 
 with app.app_context():
 
-    email = "admin@pontofacil.com"
+    email = "teste@teste.com.br"
 
     usuario_existente = Usuario.query.filter_by(
         email=email
