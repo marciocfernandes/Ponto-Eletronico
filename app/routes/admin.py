@@ -1,6 +1,6 @@
 from flask import (
     Blueprint, render_template, request,
-    redirect, url_for, flash
+    redirect, url_for, flash, send_file, abort
 )
 from werkzeug.security import generate_password_hash
 from sqlalchemy.exc import IntegrityError
@@ -12,6 +12,7 @@ from app.models.usuario import Usuario
 from app.models.registro_ponto import RegistroPonto
 from datetime import datetime, timedelta
 from app.services.relatorio import gerar_relatorio
+from app.services.exportacao import gerar_csv, gerar_pdf
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -307,4 +308,99 @@ def relatorio_jornada():
         data_inicio=data_inicio,
         data_fim=data_fim,
         relatorio=relatorio
+    )
+@admin.route("/relatorios/jornada/exportar/<formato>")
+@admin_required
+def exportar_relatorio(formato):
+
+    if formato not in ["csv", "pdf"]:
+        abort(404)
+
+    funcionario_id = request.args.get(
+        "funcionario_id", type=int
+    )
+
+    hoje = datetime.now().date()
+
+    data_inicio = request.args.get(
+        "data_inicio",
+        hoje.replace(day=1).isoformat()
+    )
+
+    data_fim = request.args.get(
+        "data_fim",
+        hoje.isoformat()
+    )
+
+    try:
+        inicio = datetime.strptime(
+            data_inicio, "%Y-%m-%d"
+        )
+
+        fim = datetime.strptime(
+            data_fim, "%Y-%m-%d"
+        )
+
+        if inicio > fim or (fim - inicio).days > 366:
+            flash("Selecione um período válido de até 366 dias.")
+            return redirect(
+                url_for("admin.relatorio_jornada")
+            )
+
+    except ValueError:
+        flash("Informe datas válidas.")
+        return redirect(
+            url_for("admin.relatorio_jornada")
+        )
+
+    consulta = (
+        RegistroPonto.query
+        .join(Usuario, RegistroPonto.usuario_id == Usuario.id)
+        .options(joinedload(RegistroPonto.usuario))
+        .filter(
+            Usuario.perfil == "FUNCIONARIO",
+            RegistroPonto.data_hora >= inicio,
+            RegistroPonto.data_hora < fim + timedelta(days=1)
+        )
+    )
+
+    if funcionario_id:
+        consulta = consulta.filter(
+            RegistroPonto.usuario_id == funcionario_id
+        )
+
+    registros = (
+        consulta
+        .order_by(RegistroPonto.data_hora.asc())
+        .all()
+    )
+
+    relatorio = gerar_relatorio(registros)
+
+    nome_arquivo = (
+        f"relatorio_jornada_"
+        f"{data_inicio}_a_{data_fim}.{formato}"
+    )
+
+    if formato == "csv":
+        arquivo = gerar_csv(relatorio)
+
+        return send_file(
+            arquivo,
+            mimetype="text/csv; charset=utf-8",
+            as_attachment=True,
+            download_name=nome_arquivo
+        )
+
+    arquivo = gerar_pdf(
+        relatorio,
+        data_inicio,
+        data_fim
+    )
+
+    return send_file(
+        arquivo,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=nome_arquivo
     )

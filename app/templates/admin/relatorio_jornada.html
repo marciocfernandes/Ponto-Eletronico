@@ -123,6 +123,34 @@
         </div>
     </div>
 
+<!-- EXPORTAÇÃO -->
+
+<div class="d-flex gap-2 mb-4">
+
+    <a href="{{ url_for(
+        'admin.exportar_relatorio',
+        formato='csv',
+        funcionario_id=funcionario_id or '',
+        data_inicio=data_inicio,
+        data_fim=data_fim
+    ) }}"
+       class="btn btn-success">
+        Exportar CSV
+    </a>
+
+    <a href="{{ url_for(
+        'admin.exportar_relatorio',
+        formato='pdf',
+        funcionario_id=funcionario_id or '',
+        data_inicio=data_inicio,
+        data_fim=data_fim
+    ) }}"
+       class="btn btn-danger">
+        Exportar PDF
+    </a>
+
+</div>
+
     <!-- RESUMO -->
 
     <div class="row g-3 mb-4">
