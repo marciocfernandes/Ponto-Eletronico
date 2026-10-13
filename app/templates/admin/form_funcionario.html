@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        {% if funcionario %}
+            Editar Funcionário
+        {% else %}
+            Novo Funcionário
+        {% endif %}
+    </title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+</head>
+
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand"
+           href="{{ url_for('admin.dashboard') }}">
+            Ponto Eletrônico | Administração
+        </a>
+    </div>
+</nav>
+
+<div class="container mt-5" style="max-width: 650px;">
+
+    <h2 class="mb-4">
+        {% if funcionario %}
+            Editar Funcionário
+        {% else %}
+            Cadastrar Funcionário
+        {% endif %}
+    </h2>
+
+    {% with mensagens = get_flashed_messages() %}
+        {% for mensagem in mensagens %}
+            <div class="alert alert-info">
+                {{ mensagem }}
+            </div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            <form method="POST">
+
+                <div class="mb-3">
+                    <label class="form-label">Nome completo</label>
+
+                    <input type="text"
+                           name="nome"
+                           class="form-control"
+                           maxlength="100"
+                           value="{{ funcionario.nome if funcionario else '' }}"
+                           required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">E-mail</label>
+
+                    <input type="email"
+                           name="email"
+                           class="form-control"
+                           maxlength="120"
+                           value="{{ funcionario.email if funcionario else '' }}"
+                           required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        {% if funcionario %}
+                            Nova senha (opcional)
+                        {% else %}
+                            Senha
+                        {% endif %}
+                    </label>
+
+                    <input type="password"
+                           name="senha"
+                           class="form-control"
+                           minlength="8"
+                           {% if not funcionario %}required{% endif %}>
+
+                    {% if funcionario %}
+                        <small class="text-muted">
+                            Deixe em branco para manter a senha atual.
+                        </small>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Salvar
+                </button>
+
+                <a href="{{ url_for('admin.listar_funcionarios') }}"
+                   class="btn btn-secondary">
+                    Cancelar
+                </a>
+
+            </form>
+
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
