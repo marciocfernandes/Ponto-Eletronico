@@ -4,12 +4,14 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from app import db
 from app.utils import admin_required
 from app.models.usuario import Usuario
 from app.models.registro_ponto import RegistroPonto
 from datetime import datetime, timedelta
+from app.services.relatorio import gerar_relatorio
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -224,4 +226,85 @@ def consultar_registros():
         funcionario_id=funcionario_id,
         data_inicio=data_inicio,
         data_fim=data_fim
+    )
+
+@admin.route("/relatorios/jornada")
+@admin_required
+def relatorio_jornada():
+
+    funcionarios = (
+        Usuario.query
+        .filter_by(perfil="FUNCIONARIO")
+        .order_by(Usuario.nome.asc())
+        .all()
+    )
+
+    funcionario_id = request.args.get(
+        "funcionario_id", type=int
+    )
+
+    hoje = datetime.now().date()
+
+    data_inicio = request.args.get(
+        "data_inicio",
+        hoje.replace(day=1).isoformat()
+    )
+
+    data_fim = request.args.get(
+        "data_fim",
+        hoje.isoformat()
+    )
+
+    try:
+        inicio = datetime.strptime(
+            data_inicio, "%Y-%m-%d"
+        )
+
+        fim = datetime.strptime(
+            data_fim, "%Y-%m-%d"
+        )
+
+        if inicio > fim:
+            flash("A data inicial não pode ser maior que a final.")
+            return redirect(url_for("admin.relatorio_jornada"))
+
+        if (fim - inicio).days > 366:
+            flash("Selecione um período de até 366 dias.")
+            return redirect(url_for("admin.relatorio_jornada"))
+
+    except ValueError:
+        flash("Informe datas válidas.")
+        return redirect(url_for("admin.relatorio_jornada"))
+
+    consulta = (
+        RegistroPonto.query
+        .join(Usuario, RegistroPonto.usuario_id == Usuario.id)
+        .options(joinedload(RegistroPonto.usuario))
+        .filter(
+            Usuario.perfil == "FUNCIONARIO",
+            RegistroPonto.data_hora >= inicio,
+            RegistroPonto.data_hora < fim + timedelta(days=1)
+        )
+    )
+
+    if funcionario_id:
+        consulta = consulta.filter(
+            RegistroPonto.usuario_id == funcionario_id
+        )
+
+    registros = (
+        consulta
+        .order_by(RegistroPonto.data_hora.asc())
+        .all()
+    )
+
+    relatorio = gerar_relatorio(registros)
+
+    return render_template(
+        "admin/relatorio_jornada.html",
+        funcionarios=funcionarios,
+        funcionario_id=funcionario_id,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        relatorio=relatorio
     )
