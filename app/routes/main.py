@@ -174,7 +174,6 @@ def registrar_ponto(tipo):
     return redirect(url_for("main.home"))
 
 
-@main.route("/limpar-registros", methods=["POST"])
 @login_required
 def limpar_registros():
 
