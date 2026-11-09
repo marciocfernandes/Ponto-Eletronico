@@ -85,6 +85,8 @@
 
                                 <form method="POST"
                                       action="{{ url_for('admin.alterar_status', id=funcionario.id) }}">
+                                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
 
                                     <button type="submit"
                                             class="btn btn-sm {% if funcionario.ativo %}btn-danger{% else %}btn-success{% endif %}">
