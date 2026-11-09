@@ -2,15 +2,15 @@
 import pytest
 
 from app import create_app
+from config import TestConfig
 
 
 @pytest.fixture
 def client():
-    app = create_app()
-    app.config.update(TESTING=True)
+    app = create_app(TestConfig)
 
-    with app.test_client() as client:
-        yield client
+    with app.test_client() as cliente:
+        yield cliente
 
 
 def test_login_disponivel(client):
@@ -20,6 +20,7 @@ def test_login_disponivel(client):
 
 def test_api_status(client):
     resposta = client.get("/api/status")
+
     assert resposta.status_code == 200
     assert resposta.get_json()["status"] == "online"
 

@@ -1,3 +1,4 @@
+
 import os
 from dotenv import load_dotenv
 
@@ -5,14 +6,16 @@ load_dotenv()
 
 
 class Config:
+    SECRET_KEY = os.environ["SECRET_KEY"]
 
-    SECRET_KEY = os.getenv(
-        "SECRET_KEY",
-        "chave-desenvolvimento-pontoeletronico"
-    )
-
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL"
-    )
+    SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+
+class TestConfig(Config):
+    TESTING = True
+
+    SQLALCHEMY_DATABASE_URI = os.environ["TEST_DATABASE_URL"]
+
+    WTF_CSRF_ENABLED = True
