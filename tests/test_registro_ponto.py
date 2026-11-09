@@ -140,6 +140,7 @@ def test_sequencia_completa(ambiente):
     assert contar_registros(app, usuario_id) == 4
 
 
+
 def test_impedir_quinto_registro(ambiente):
     client, app, usuario_id = ambiente
 
@@ -150,37 +151,34 @@ def test_impedir_quinto_registro(ambiente):
         "SAIDA"
     ]
 
-    # Realiza as quatro marcações permitidas
+    # Executa as quatro marcações permitidas
     for tipo in sequencia:
         resposta = enviar_ponto(client, tipo)
         assert resposta.status_code == 200
 
-    # Confirma que existem quatro registros
+    # Confirma que a jornada possui quatro registros
     assert contar_registros(app, usuario_id) == 4
 
-    # Recupera o token CSRF da sessão de teste
+    # Obtém um token CSRF válido para testar a rota
+    # diretamente, sem depender do botão no dashboard.
     from flask_wtf.csrf import generate_csrf
 
-    with client.application.test_request_context():
+    with app.test_request_context():
         with client.session_transaction() as sessao:
             from flask import session
             session.update(dict(sessao))
             token = generate_csrf()
-
-            # Mantém na sessão do cliente o token gerado
             sessao["csrf_token"] = session["csrf_token"]
 
-    # Tenta realizar uma quinta marcação diretamente
     resposta = client.post(
         "/registrar-ponto/ENTRADA",
         data={"csrf_token": token},
         follow_redirects=True
     )
 
-    # O sistema deve bloquear a quinta marcação
     assert resposta.status_code == 200
 
-    # A quantidade de registros deve permanecer em quatro
+    # A quinta marcação não pode ser gravada
     assert contar_registros(app, usuario_id) == 4
 
 
