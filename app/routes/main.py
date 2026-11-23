@@ -1,6 +1,15 @@
+
 from datetime import datetime
 
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import (
+    Blueprint,
+    render_template,
+    redirect,
+    url_for,
+    flash,
+    request
+)
+
 from flask_login import login_required, current_user
 
 from app import db
@@ -10,10 +19,18 @@ from app.models.registro_ponto import RegistroPonto
 main = Blueprint("main", __name__)
 
 
+# =====================================================
+# PÁGINA INICIAL
+# =====================================================
+
 @main.route("/")
 def index():
     return redirect(url_for("auth.login"))
 
+
+# =====================================================
+# DASHBOARD DO FUNCIONÁRIO
+# =====================================================
 
 @main.route("/home")
 @login_required
@@ -40,6 +57,7 @@ def home():
 
     quantidade = len(registros)
 
+    # Identifica o próximo registro permitido
     if quantidade >= 4:
 
         proximo_tipo = None
@@ -58,9 +76,10 @@ def home():
         elif quantidade == 2:
             status = "Em intervalo"
 
-        elif quantidade == 3:
+        else:
             status = "Trabalhando"
 
+    # Cálculo da jornada
     tempo_trabalhado = None
     tempo_intervalo = None
 
@@ -98,22 +117,34 @@ def home():
     )
 
 
+# =====================================================
+# REGISTRAR PONTO
+# =====================================================
+
 @main.route("/registrar-ponto/<tipo>", methods=["POST"])
 @login_required
 def registrar_ponto(tipo):
 
-    tipos_validos = [
+    sequencia = [
         "ENTRADA",
         "SAIDA_INTERVALO",
         "RETORNO_INTERVALO",
         "SAIDA"
     ]
 
-    if tipo not in tipos_validos:
+    # Valida o tipo de registro
+    if tipo not in sequencia:
 
         flash("Tipo de ponto inválido.")
 
         return redirect(url_for("main.home"))
+
+    # Impede registros de usuários desativados
+    if not current_user.ativo:
+
+        flash("Seu usuário está desativado.")
+
+        return redirect(url_for("auth.logout"))
 
     hoje = datetime.now().date()
 
@@ -129,13 +160,7 @@ def registrar_ponto(tipo):
 
     quantidade = len(registros_hoje)
 
-    sequencia = [
-        "ENTRADA",
-        "SAIDA_INTERVALO",
-        "RETORNO_INTERVALO",
-        "SAIDA"
-    ]
-
+    # Impede mais de quatro registros
     if quantidade >= 4:
 
         flash("Todos os registros de hoje já foram realizados.")
@@ -144,6 +169,7 @@ def registrar_ponto(tipo):
 
     tipo_esperado = sequencia[quantidade]
 
+    # Valida a sequência
     if tipo != tipo_esperado:
 
         nomes = {
@@ -161,44 +187,50 @@ def registrar_ponto(tipo):
 
         return redirect(url_for("main.home"))
 
+    # =================================================
+    # NOVA FUNCIONALIDADE: JUSTIFICATIVA DE ATRASO
+    # =================================================
+
+    justificativa = None
+
+    if tipo == "ENTRADA":
+
+        justificativa = request.form.get(
+            "justificativa", ""
+        ).strip()
+
+        # Limite máximo de caracteres
+        if len(justificativa) > 500:
+
+            flash(
+                "A justificativa deve ter no máximo "
+                "500 caracteres."
+            )
+
+            return redirect(url_for("main.home"))
+
+        # Campo vazio será armazenado como NULL
+        justificativa = justificativa or None
+
+    # =================================================
+    # SALVAR REGISTRO NO POSTGRESQL
+    # =================================================
+
     novo_registro = RegistroPonto(
         usuario_id=current_user.id,
-        tipo=tipo
+        tipo=tipo,
+        justificativa=justificativa
     )
 
     db.session.add(novo_registro)
     db.session.commit()
 
-    flash("Ponto registrado com sucesso!")
-
-    return redirect(url_for("main.home"))
-
-
-@login_required
-def limpar_registros():
-
-    hoje = datetime.now().date()
-
-    registros = (
-        RegistroPonto.query
-        .filter(
-            RegistroPonto.usuario_id == current_user.id,
-            db.func.date(RegistroPonto.data_hora) == hoje
+    if justificativa:
+        flash(
+            "Ponto registrado com sucesso! "
+            "Justificativa armazenada."
         )
-        .all()
-    )
-
-    if not registros:
-
-        flash("Não existem registros de hoje para apagar.")
-
-        return redirect(url_for("main.home"))
-
-    for registro in registros:
-        db.session.delete(registro)
-
-    db.session.commit()
-
-    flash("Registros de teste de hoje foram apagados.")
+    else:
+        flash("Ponto registrado com sucesso!")
 
     return redirect(url_for("main.home"))
